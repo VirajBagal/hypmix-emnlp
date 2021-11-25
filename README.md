@@ -1,4 +1,4 @@
-# HypMix + Cutout
+# HypMix + Cutout: Only on Vision Modality
 
 This branch contains the code for HypMix + Cutout implementation on Vision modality only. All of the code is borrowed from: 
 
