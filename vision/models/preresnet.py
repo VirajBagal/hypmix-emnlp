@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import sys,os
 import numpy as np
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from utils import to_one_hot, mixup_process, get_lambda
+from utils import to_one_hot, mixup_process, get_lambda, mixup_cutout_process
 from load_data import per_image_standardization
 import random
 
@@ -98,7 +98,7 @@ class PreActResNet(nn.Module):
         out = self.layer2(out)
         return out
 
-    def forward(self, x, target= None, mixup=False, mixup_hidden=False, mixup_alpha=None):
+    def forward(self, x, target= None, mixup=False, mixup_hidden=False, mixup_alpha=None, n_holes=None, length=None):
         #import pdb; pdb.set_trace()
         if self.per_img_std:
             x = per_image_standardization(x)
@@ -121,23 +121,23 @@ class PreActResNet(nn.Module):
             target_reweighted = to_one_hot(target,self.num_classes)
         
         if layer_mix == 0:
-                out, target_reweighted = mixup_process(out, target_reweighted, lam=lam)
+            length = length * 2
+            out, target_reweighted = mixup_cutout_process(out, target_reweighted, lam, n_holes, length)
 
         out = self.conv1(out)
         out = self.layer1(out)
 
         if layer_mix == 1:
-            out, target_reweighted = mixup_process(out, target_reweighted, lam=lam)
+            out, target_reweighted = mixup_cutout_process(out, target_reweighted, lam, n_holes, length)
 
         out = self.layer2(out)
 
         if layer_mix == 2:
-            out, target_reweighted = mixup_process(out, target_reweighted, lam=lam)
+            out, target_reweighted = mixup_cutout_process(out, target_reweighted, lam, n_holes, length)
 
-        
         out = self.layer3(out)
         if  layer_mix == 3:
-            out, target_reweighted = mixup_process(out, target_reweighted, lam=lam)
+            out, target_reweighted = mixup_cutout_process(out, target_reweighted, lam, n_holes, length)
 
         out = self.layer4(out)
         out = F.avg_pool2d(out, 4)

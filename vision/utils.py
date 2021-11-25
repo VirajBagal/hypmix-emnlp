@@ -1,6 +1,6 @@
 import os, sys, time
 import torch
-import geoopt.manifolds.poincare.math as pmath_geo
+from geoopt.manifolds import PoincareBall # previous had import error
 from torch.autograd import Variable
 import numpy as np
 import matplotlib
@@ -126,14 +126,34 @@ def to_one_hot(inp,num_classes):
 
 
 def mixup_process(out, target_reweighted, lam):
+    pmath_geo = PoincareBall()
+    pmath_geo.cuda()
     indices = np.random.permutation(out.size(0))
     out = out*lam + out[indices]*(1-lam)
-    sequence_output = pmath_geo.expmap0(out, c=torch.tensor([1.0], device='cuda'))
-    sequence_output_2 = pmath_geo.expmap0(out[indices], c=torch.tensor([1.0], device='cuda'))
-    weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(lam, sequence_output, c=torch.tensor([1.0], device='cuda'))
-    weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul((1-lam), sequence_output_2, c=torch.tensor([1.0], device='cuda'))
-    hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2, c=torch.tensor([1.0], device='cuda'))
-    out = pmath_geo.logmap0(hidden_states_1_plus_2, c=torch.tensor([1.0], device='cuda'))
+    # code changed due to import error
+    sequence_output = pmath_geo.expmap0(out)
+    sequence_output_2 = pmath_geo.expmap0(out[indices])
+    weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(lam, sequence_output)
+    weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul((1-lam), sequence_output_2)
+    hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2)
+    out = pmath_geo.logmap0(hidden_states_1_plus_2)
+    target_shuffled_onehot = target_reweighted[indices]
+    target_reweighted = target_reweighted * lam + target_shuffled_onehot * (1 - lam)
+    return out, target_reweighted
+
+def mixup_cutout_process(out, target_reweighted, lam, n_holes, length):
+    cutout = Cutout(n_holes, length)  # actual extra code
+    pmath_geo = PoincareBall()
+    pmath_geo.cuda()
+    indices = np.random.permutation(out.size(0))
+    # code changed due to import error
+    sequence_output = pmath_geo.expmap0(out)
+    sequence_output_2 = pmath_geo.expmap0(out[indices])
+    weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(lam, sequence_output)
+    weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul((1-lam), sequence_output_2)
+    hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2)
+    out = cutout.apply(hidden_states_1_plus_2)   # actual extra code
+    out = pmath_geo.logmap0(hidden_states_1_plus_2)
     target_shuffled_onehot = target_reweighted[indices]
     target_reweighted = target_reweighted * lam + target_shuffled_onehot * (1 - lam)
     return out, target_reweighted

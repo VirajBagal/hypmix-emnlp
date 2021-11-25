@@ -57,6 +57,11 @@ parser.add_argument('--train', type=str, default = 'vanilla', choices =['vanilla
 parser.add_argument('--mixup_alpha', type=float, default=0.0, help='alpha parameter for mixup')
 parser.add_argument('--cutout', type=int, default=16, help='size of cut out')
 
+parser.add_argument('--num_holes', type=int, default=2, metavar='NL',
+                    help='number of holes to be created in cutout')
+parser.add_argument('--hole_length', type=int, default=4, metavar='NL',
+                    help='minimum length of hole')
+
 parser.add_argument('--dropout', action='store_true', default=False,
                     help='whether to use dropout or not in final layer')
 #parser.add_argument('--batch_size', type=int, default=128, help='Batch size.')
@@ -236,7 +241,7 @@ def train(train_loader, model, optimizer, epoch, args, log):
             
         elif args.train== 'mixup_hidden':
             input_var, target_var = Variable(input), Variable(target).long()
-            output, reweighted_target = model(input_var, target_var, mixup_hidden= True, mixup_alpha = args.mixup_alpha)
+            output, reweighted_target = model(input_var, target_var, mixup_hidden= True, mixup_alpha = args.mixup_alpha, n_holes = args.num_holes, length = args.hole_length)  # added num cutout holes and their lengths
             loss = bce_loss(softmax(output), reweighted_target)#mixup_criterion(target_a, target_b, lam)
             """
             input_var, target_var = Variable(input), Variable(target)
@@ -313,7 +318,7 @@ def validate(val_loader, model, log):
 
   for i, (input, target) in enumerate(val_loader):
     if args.use_cuda:
-      target = target.cuda(async=True)
+      target = target.cuda()   # async=True
       input = input.cuda()
     with torch.no_grad():
         input_var = Variable(input)
